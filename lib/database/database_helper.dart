@@ -1,66 +1,14 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
-import '../models/user.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:coba_dart/models/product.dart';
 
-class DatabaseHelper {
-  static final DatabaseHelper instance = DatabaseHelper._init();
-  static Database? _database;
+Future<List<Product>> fetchProducts() async {
+  final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/products'));
 
-  DatabaseHelper._init();
-
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB('login.db');
-    return _database!;
-  }
-
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
-  }
-
-  void _createDB(Database db, int version) async {
-    await db.execute('''
-    CREATE TABLE users(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL,
-      password TEXT NOT NULL
-    );
-    ''');
-  }
-
-  Future<int> insertUser(User user) async {
-    final db = await instance.database;
-    return await db.insert('users', user.toMap());
-  }
-
-  Future<User?> getUser(String username, String password) async {
-    final db = await instance.database;
-    final maps = await db.query(
-      'users',
-      where: 'username = ? AND password = ?',
-      whereArgs: [username, password],
-    );
-    if (maps.isNotEmpty) {
-      return User.fromMap(maps.first);
-    } else {
-      return null;
-    }
-  }
-
-  Future<int> deleteUser(int id) async {
-    final db = await instance.database;
-    return await db.delete(
-      'users',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
-  Future<List<User>> getAllUsers() async {
-    final db = await instance.database;
-    final result = await db.query('users');
-    return result.map((map) => User.fromMap(map)).toList();
+  if (response.statusCode == 200) {
+    List jsonResponse = json.decode(response.body);
+    return jsonResponse.map((product) => Product.fromJson(product)).toList();
+  } else {
+    throw Exception('Failed to load products');
   }
 }
